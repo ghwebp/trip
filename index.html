@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trip Expense Splitter</title>
+<style>
+body{font-family:Arial,sans-serif;background:#eef2f7;margin:0}
+.wrap{max-width:1000px;margin:24px auto;background:#fff;padding:20px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+h2{text-align:center;margin-top:0}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input[type=number],input[type=text]{padding:8px}
+button{padding:9px 14px;border:none;border-radius:6px;background:#1976d2;color:#fff;cursor:pointer}
+button:hover{background:#125ea7}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{border:1px solid #ccc;padding:8px;text-align:center}
+th{background:#1976d2;color:#fff}
+.readonly{background:#f3f3f3}
+.credit{color:#138a2e;font-weight:bold}
+.debit{color:#c62828;font-weight:bold}
+.card{margin-top:18px;padding:12px;border-radius:8px;background:#f7fbff}
+ul{margin:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h2>Trip Expense Splitter</h2>
+
+<div class="controls">
+<label><b>How many persons?</b></label>
+<input id="count" type="number" min="2" value="2">
+<button onclick="createRows()">Create</button>
+<button onclick="calculate()">Calculate</button>
+<button onclick="resetApp()">Reset</button>
+</div>
+
+<table>
+<thead>
+<tr><th>Sr.</th><th>Name</th><th>Amount Spent</th><th>Share</th><th>Balance</th></tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+
+<div id="summary" class="card"></div>
+<div id="settlement" class="card"></div>
+</div>
+
+<script>
+createRows();
+
+function createRows(){
+ const n=parseInt(document.getElementById('count').value);
+ if(isNaN(n)||n<2){alert("Minimum 2 persons required.");return;}
+ const tb=document.getElementById('tbody');
+ tb.innerHTML="";
+ for(let i=1;i<=n;i++){
+  tb.innerHTML+=`<tr>
+   <td>${i}</td>
+   <td><input type="text" id="name${i}" placeholder="Person ${i}"></td>
+   <td><input type="number" id="spent${i}" min="0" step="1" value="0"></td>
+   <td id="share${i}" class="readonly">-</td>
+   <td id="bal${i}" class="readonly">-</td>
+  </tr>`;
+ }
+ document.getElementById("summary").innerHTML="";
+ document.getElementById("settlement").innerHTML="";
+}
+
+function calculate(){
+ const n=parseInt(document.getElementById('count').value);
+ let total=0, persons=[];
+ for(let i=1;i<=n;i++){
+   let nm=document.getElementById("name"+i).value.trim();
+   if(!nm) nm="Person "+i;
+   let amt=Math.max(0,parseInt(document.getElementById("spent"+i).value)||0);
+   persons.push({name:nm,spent:amt});
+   total+=amt;
+ }
+ const shareExact=total/n;
+ const shareDisplay=Math.ceil(shareExact);
+
+ let creditors=[],debtors=[];
+ for(let i=0;i<n;i++){
+   let bal=persons[i].spent-shareExact; // internal exact
+   document.getElementById("share"+(i+1)).textContent=shareDisplay;
+   const cell=document.getElementById("bal"+(i+1));
+   cell.className="readonly";
+   let show=bal>0?Math.ceil(bal):-Math.ceil(-bal);
+   cell.textContent=show;
+   if(show>0){cell.classList.add("credit");creditors.push({name:persons[i].name,amount:bal});}
+   else if(show<0){cell.classList.add("debit");debtors.push({name:persons[i].name,amount:-bal});}
+ }
+ document.getElementById("summary").innerHTML=
+ `<h3>Trip Summary</h3>
+ <b>Total Expense:</b> ₹${total}<br>
+ <b>Persons:</b> ${n}<br>
+ <b>Expense Per Person:</b> ₹${shareDisplay}`;
+
+ let out="<h3>Final Settlement</h3><ul>";
+ let i=0,j=0,c=0;
+ while(i<debtors.length && j<creditors.length){
+   let pay=Math.min(debtors[i].amount,creditors[j].amount);
+   if(pay>0.005){
+      out+=`<li><b>${debtors[i].name}</b> pays <b>${creditors[j].name}</b> <b>₹${Math.ceil(pay)}</b></li>`;
+      c++;
+   }
+   debtors[i].amount-=pay;
+   creditors[j].amount-=pay;
+   if(debtors[i].amount<0.01)i++;
+   if(creditors[j].amount<0.01)j++;
+ }
+ out+="</ul>";
+ if(c===0) out="<h3>Final Settlement</h3><p>Everyone has already paid their fair share. No settlement required.</p>";
+ document.getElementById("settlement").innerHTML=out;
+}
+function resetApp(){
+ document.getElementById("count").value=2;
+ createRows();
+}
+</script>
+</body>
+</html>
